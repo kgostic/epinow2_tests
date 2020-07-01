@@ -1,0 +1,326 @@
+---
+title: "Test EpiNow2"
+output: html_notebook
+---
+
+## Test EpiNow2 on SEIR synthetic data
+Katie Gostic
+26 June 2020
+
+
+
+## Install packages
+```{r}
+# install.packages("drat")
+#drat:::add("epiforecasts")
+#install.packages("EpiNow2")
+```
+## Load packages
+```{r}
+rm(list = ls())
+setwd(here::here())
+library(dplyr)
+library(readr)
+library(tidyr)
+library(ggplot2)
+library(cowplot)
+library(EpiNow2)
+library(NCoVUtils)
+library(deSolve)
+require(data.table, quietly = TRUE) 
+require(future, quietly = TRUE)
+require(forecastHybrid, quietly = TRUE)
+```
+
+
+## Generate synthetic data
+```{r}
+source('util.R')
+source('simulation.R')
+
+## Set simulation parameters
+parlist <- {
+  list(
+    N = 2e6, #total population size
+    E_init = 0, # initial in E class
+    I_init = 60, # initial in I class
+    t_E = 4, # mean time in E (latent period)
+    t_I = 4, # mean time in I (duration of infectiousness)
+    n_t = 300, # total timesteps
+    R0_vals = c(2, 0.7, 1.1), ## Steady-state R0 values held at different points in the simulation
+    change_starts = c(50, 90), ## Times at which R0 starts to decrease from its previous steady state value
+    change_ends = c(57, 97), ## Times at which R0 reaches its new steady state
+    model_types = c('seir'), # Can also choose sir
+    methods = c('ode', 'stochastic') # could also choose ode
+  )
+}
+
+## Derive the mean and variance of the serial interval from the input parameters
+parlist$true_mean_GI = (parlist$t_E+parlist$t_I)
+parlist$true_var_GI = 2*parlist$true_mean_GI^2
+
+
+
+## Simulate SEIR data using a stochastic (ode) model
+## Results are saved to subdirectory rds/
+arnaught <- with(parlist, specify_arnaught(R0_vals, change_starts, change_ends, n_t))
+sim_wrapper(arnaught, parlist)
+
+
+write_rds(parlist, path = 'true_pars.rds')
+```
+
+## Visualize synthetic data
+```{r}
+get_sim_df() %>%
+    filter(time < 300) %>%
+ggplot() +
+  geom_line(aes(x = time, y = infections))+
+  geom_vline(aes(xintercept = parlist$change_starts[1]), lty = 2)+ ## Dahsed line where Rt starts to decrease
+  geom_vline(aes(xintercept = parlist$change_starts[2]), lty = 2)+
+  ggtitle('Epidemic curve') -> inc
+
+get_sim_df() %>% 
+  filter(time < 300) %>%
+  ggplot()+
+  geom_line(aes(x = time, y = true_rt)) +
+  geom_hline(aes(yintercept = 1), lty = 2)+
+  ylab(expression(paste(R[t])))+
+  ggtitle(expression(paste('Underlying ', R[t], ' values'))) -> R0
+
+cowplot::plot_grid(R0, inc,  nrow = 2)
+ggsave('figs/SEIR_sim.png', width = 5, height = 5, units = 'in', dpi = 300)
+```
+
+## Set delays, generation interval and incubation period for input into EpiNow2
+```{r}
+generation_time <- list(mean = log(parlist$true_mean_GI),
+                        mean_sd = 1,
+                        sd = log(sqrt(parlist$true_var_GI)),
+                        sd_sd = 1,
+                        max = 30)
+
+incubation_period <- list(mean = EpiNow2::covid_incubation_period[1, ]$mean,
+                          mean_sd = EpiNow2::covid_incubation_period[1, ]$mean_sd,
+                          sd = EpiNow2::covid_incubation_period[1, ]$sd,
+                          sd_sd = EpiNow2::covid_incubation_period[1, ]$sd_sd,
+                          max = 30)
+
+obs_rep_delay <- list(mean = log(5), ## assume mean of 5 days for outpatient testing (48h from symptom onset + 48h for reporting + report the following day)
+                         mean_sd = 1,
+                         sd = log(1.7),
+                         sd_sd = 1,
+                         max = 30)
+xx = seq(0, 30, by = 0.01)
+plot(xx, dlnorm(xx, log(5), log(1.7)), type = 'l', main = 'assumed delay from onset to case detection', xlab = 'days', ylab = 'dens')
+
+## For death, assume a mean of 15 days from symptom onset and an sd of about 7d
+death_rep_delay <- list(mean = log(15), ## mean of 3 days
+                         mean_sd = 1,
+                         sd = log(1.5),
+                         sd_sd = 1,
+                         max = 30)
+xx = seq(0, 30, by = 0.01)
+plot(xx, dlnorm(xx, log(15), log(1.5)), type = 'l', main = 'assumed delay from onset to death', xlab = 'days', ylab = 'dens')
+```
+
+## Use the same delays to generate an observed time series from the synthetic data
+```{r}
+## Function to draw random samples from the incubation period distribution
+r_inc_dist <- function(n){rlnorm(n, meanlog = incubation_period$mean, sdlog = incubation_period$sd)} 
+
+
+## Function to draw samples from delays to observation:
+outpatient_delay_dist <- function(nn, inc_dist = r_inc_dist){
+  r_sym_to_obs_dist <- function(n){rlnorm(n, obs_rep_delay$mean, obs_rep_delay$sd)} # Additional delay from symptoms -> observation
+  inc_dist(nn) + r_sym_to_obs_dist(nn)
+}
+
+## Set the delay distribution to death
+death_delay_dist <- function(nn, inc_dist = r_inc_dist){
+  r_sym_to_obs_dist <- function(n){rlnorm(n, death_rep_delay$mean, death_rep_delay$sd)} # Additional delay from symptoms -> observation
+  inc_dist(nn) + r_sym_to_obs_dist(nn)
+}
+```
+
+## Generate synthetic time series of observations from infections
+```{r}
+source('inf_to_obs.R')
+
+## Wrapper function to get synthetic data in a data frame that includes times of observation
+get_obs_ts <- function(mt = NULL){ # "Max time" - time at which to end the time series of observations
+  if(length(mt) == 0){mt = max(get_sim_df()$time)}
+  
+  ## Sample from delays to get times of observation
+  get_sim_df() %>%
+    merge(
+      get_tObs_from_tInf(get_sim_df()$incidence, get_sim_df()$time, outpatient_delay_dist, return_times = T),
+      by = 'time', all = TRUE) %>% rename(obs_outpatient = n) %>%
+    merge(
+      get_tObs_from_tInf(get_sim_df()$incidence, get_sim_df()$time, death_delay_dist, return_times = T),
+      by = 'time', all = TRUE) %>% rename(obs_deaths = n) %>%
+    as.tbl() -> obs_df
+  
+  ## Truncate at time mt
+  obs_df <- obs_df %>% filter(time <= mt)
+  return(obs_df)
+}
+
+## Generate synthetic times of observation up to t = 150
+obs_df <- get_obs_ts(150) %>%
+    mutate(date = Sys.Date()-rev(time)) ## Add calendar dates for input into epinow
+
+## Plot
+obs_df %>%
+  select(time, incidence, contains('obs')) %>%
+  pivot_longer(-time, names_to = 'data_type', values_to = 'count') %>%
+  mutate(is_imputed = ifelse(!grepl(pattern = 'obs', x = data_type), 'observed', 'underlying'),
+         data_type = factor(data_type, 
+                            levels = c('incidence', 'obs_outpatient', 'imputed_hospital', 'obs_deaths'),
+                            labels = c('latent (true) infections\nlater observed as...', 'cases', 'hospital admissions', 'deaths'))) %>%
+  ggplot() +
+  geom_line(aes(x = time, y = count, color = data_type, lty = is_imputed)) +
+  ggtitle('Synthetic Data') +
+  scale_color_viridis_d(direction = -1)+
+  guides(color = 'none')+
+  theme(legend.position = 'bottom')+
+  labs(color = '', linetype = 'Type') -> obs
+obs + guides(color = 'legend') + theme(legend.position = 'right')
+```
+
+
+## Input into epinow2 with everything perfectly specified
+```{r}
+## Write a wrapper to reformat the desired synthetic data for input into epiEstim
+get_in_dat <- function(obs_colname){
+  obs_df[,c('date', obs_colname)] %>%
+    setnames(c('date', 'confirm')) %>%
+    as.data.table() %>%
+    return()
+}
+```
+
+## Test using synthetic case observations
+```{r}
+## From outpatient testing
+est_from_cases <- EpiNow2::epinow(reported_cases = get_in_dat('obs_outpatient'), 
+                             generation_time = generation_time,  ## Generation time priors
+                             incubation_period = incubation_period, ## Incubation priors
+                             reporting_delay = obs_rep_delay, ## Reporting dealy priors
+                             rt_prior = list(mean = 1, sd = 1), horizon = 7,
+                             samples = 2000, warmup = 500, cores = 4,
+                             chains = 4, verbose = TRUE,
+                             target_folder = 'perfectly_specified')
+```
+
+## Test using synthetic deaths
+```{r}
+est_from_deaths <- EpiNow2::epinow(reported_cases = get_in_dat('obs_deaths'), 
+                             generation_time = generation_time,  ## Generation time priors
+                             incubation_period = incubation_period, ## Incubation priors
+                             reporting_delay = death_rep_delay, ## Reporting dealy priors
+                             rt_prior = list(mean = 1, sd = 1), horizon = 7,
+                             samples = 2000, warmup = 500, cores = 4,
+                             chains = 4, verbose = TRUE)
+```
+
+## Plot posteriors vs. priors
+
+## Plot Rt estimates and inferred infection time series.
+
+
+
+## Test misspecified delays
+
+## Test right truncation while Rt is rising or falling
+
+
+
+
+
+# Format ---------------------------------------------------------------
+```{r}
+# cases <- get_sim_df() %>%
+#   mutate(region = 'Synthetic',
+#          import_status = 'local',
+#          date = as.Date(time, origin = '2020-02-15')) %>%
+#   select(date, region, import_status, confirm)
+
+```
+
+
+# Get linelist ------------------------------------------------------------
+
+linelist <- 
+  data.table::fread("https://raw.githubusercontent.com/epiforecasts/NCoVUtils/master/data-raw/linelist.csv")
+
+
+delays <- linelist[!is.na(date_onset_symptoms)][, 
+                   .(report_delay = as.numeric(lubridate::dmy(date_confirmation) - 
+                                                 as.Date(lubridate::dmy(date_onset_symptoms))))]
+
+delays <- delays$report_delay
+
+# Set up cores -----------------------------------------------------
+if (!interactive()){
+  options(future.fork.enable = TRUE)
+}
+
+future::plan("multiprocess", gc = TRUE, earlySignal = TRUE)
+
+# Fit the reporting delay -------------------------------------------------
+
+delay_defs <- EpiNow::get_dist_def(delays,
+                                    bootstraps = 100, 
+                                    samples = 1000)
+
+# Fit the incubation period -----------------------------------------------
+
+## Mean delay
+exp(EpiNow::covid_incubation_period[1, ]$mean)
+
+## Get incubation defs
+incubation_defs <- EpiNow::lognorm_dist_def(mean = EpiNow::covid_incubation_period[1, ]$mean,
+                                            mean_sd = EpiNow::covid_incubation_period[1, ]$mean_sd,
+                                            sd = EpiNow::covid_incubation_period[1, ]$sd,
+                                            sd_sd = EpiNow::covid_incubation_period[1, ]$sd_sd,
+                                            max_value = 30, samples = 1000)
+
+
+# Run regions nested ------------------------------------------------------
+
+cores_per_region <- 1
+future::plan(list(tweak("multiprocess", 
+                        workers = floor(future::availableCores() / cores_per_region)),
+                  tweak("multiprocess", workers = cores_per_region)),
+                  gc = TRUE, earlySignal = TRUE)
+
+# Run pipeline ----------------------------------------------------
+
+EpiNow::regional_rt_pipeline(
+  cases = cases,
+  delay_defs = delay_defs,
+  incubation_defs = incubation_defs,
+  target_folder = "national",
+  case_limit = 60,
+  horizon = 14,
+  nowcast_lag = 10,
+  approx_delay = TRUE,
+  report_forecast = TRUE, 
+  forecast_model = function(y, ...){EpiSoon::forecastHybrid_model(
+    y = y[max(1, length(y) - 21):length(y)],
+    model_params = list(models = "aefz", weights = "equal"),
+    forecast_params = list(PI.combination = "mean"), ...)}
+)
+
+
+future::plan("sequential")
+
+# Summarise results -------------------------------------------------------
+
+EpiNow::regional_summary(results_dir = "national",
+                         summary_dir = "national-summary",
+                         target_date = "latest",
+                         region_scale = "Country",
+                         csv_region_label = "country",
+                         log_cases = TRUE)

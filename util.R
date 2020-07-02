@@ -86,6 +86,10 @@ na_to_0 <- function(vec){
 }
 
 
+dir_check <- function(dir){
+ if(!dir.exists(dir)){
+	make.dir(dir)
+}}
 
 
 

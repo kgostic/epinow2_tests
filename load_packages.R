@@ -12,5 +12,5 @@ library(NCoVUtils)
 library(deSolve)
 require(data.table, quietly = TRUE) 
 require(future, quietly = TRUE)
-require(forecastHybrid, quietly = TRUE)
+#require(forecastHybrid, quietly = TRUE)
 

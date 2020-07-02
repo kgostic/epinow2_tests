@@ -2,7 +2,7 @@
 ## Later, load outputs using get_sim_df()
 ## Plot the outptus in figs/SEIR_sim.png
 
-
+source('load_packages.R')
 source('util.R')
 source('simulation.R')
 

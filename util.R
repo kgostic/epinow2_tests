@@ -86,6 +86,11 @@ na_to_0 <- function(vec){
 }
 
 
+dir_check <- function(dir){
+  if(!dir.exists(dir)){
+    dir.create(dir)
+  }
+}
 
 
 
@@ -267,6 +272,23 @@ gg_png <- function(ww, ## width (in)
   ggsave(filename = fn, width =  ww, height = hh, plot = pp, units = 'in', dpi = 300, device = png())
 }
 
+
+## These are the paramters for SI ~ gamma(2, 1/4)
+get_shape <- function(mean, vv){
+  rate = mean/vv
+  shape = mean*rate
+  stopifnot(shape/rate == mean)
+  stopifnot(shape/rate^2 == vv)
+  shape
+}
+
+get_rate <- function(mean, vv){
+  rate = mean/vv
+  shape = mean*rate
+  stopifnot(shape/rate == mean)
+  stopifnot(shape/rate^2 == vv)
+  rate
+}
 
 
 

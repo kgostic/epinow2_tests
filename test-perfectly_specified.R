@@ -77,6 +77,14 @@ death_rep_delay <- list(mean = log(testpars$input_mean_death_delay), ## For deat
                         max = 30)
 
 
+
+write_rds(testpars, sprintf('%s/testpars.rds', testpars$output_folder))
+write_rds(generation_time, sprintf('%s/gen_interval.rds', testpars$output_folder))
+write_rds(incubation_period, sprintf('%s/incubation_pd.rds', testpars$output_folder))
+write_rds(obs_rep_delay, sprintf('%s/case_delay.rds', testpars$output_folder))
+write_rds(death_rep_delay, sprintf('%s/death_delay.rds', testpars$output_folder))
+
+
 # Plot the specified distributions
 pdf(sprintf('%s/specified_distributions.pdf', testpars$output_folder))
 xx = seq(0, 30, by = 0.01)
@@ -191,7 +199,7 @@ est_from_cases <- EpiNow2::epinow(reported_cases = get_in_dat('obs_outpatient'),
                                   rt_prior = list(mean = 1, sd = 1), horizon = 7,
                                   samples = 2000, warmup = 500, cores = 4,
                                   chains = 4, verbose = TRUE,
-                                  target_folder = testpars$output_folder)
+                                  target_folder = paste0(testpars$output_folder, '/cases'))
 
 est_from_deaths <- EpiNow2::epinow(reported_cases = get_in_dat('obs_deaths'), 
                                    generation_time = generation_time,  ## Generation time priors
@@ -200,4 +208,4 @@ est_from_deaths <- EpiNow2::epinow(reported_cases = get_in_dat('obs_deaths'),
                                    rt_prior = list(mean = 1, sd = 1), horizon = 7,
                                    samples = 2000, warmup = 500, cores = 4,
                                    chains = 4, verbose = TRUE,
-                                   target_folder = testpars$output_folder)
+                                   target_folder = paste0(testpars$output_folder, '/deaths'))

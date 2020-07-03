@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --time=3:00:00
-#SBATCH --output=messages/%x_%a.out
-#SBATCH --error=messages/%x_%a.err
+#SBATCH --output=/home/kgostic/scratch-midway2/epinow2_tests/messages/%x_%a.out
+#SBATCH --error=/home/kgostic/scratch-midway2/epinow2_tests/messages/%x_%a.err
 #SBATCH --nodes=1
 #SBATCH --partition=broadwl --qos=covid-19 --account=covid-19
 #SBATCH --ntasks-per-node=4
@@ -22,5 +22,3 @@ sleep 3
 
 
 Rscript test-perfectly_specified.R  
-
-sacct -X --format="JobName,JobID,State,ExitCode,Elapsed,MaxRSS,ReqMem,Start,End" -j $SLURM_ARRAY_JOB_ID > messages/$SLURM_JOB_NAME_runtimes.txt

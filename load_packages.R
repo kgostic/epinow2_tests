@@ -1,7 +1,6 @@
 ## Load packages
 ## Install packages
 rm(list = ls())
-setwd(here::here())
 require(rstan, quietly = TRUE)
 rstan_options(auto_write = TRUE)
 require(dplyr, quietly = TRUE)

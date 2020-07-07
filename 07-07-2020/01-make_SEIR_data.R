@@ -2,9 +2,10 @@
 ## Later, load outputs using get_sim_df()
 ## Plot the outptus in figs/SEIR_sim.png
 
-
+source('00-load_packages.R')
 source('00-util.R')
 source('00-simulation.R')
+
 
 ## Set simulation parameters
 parlist <- {

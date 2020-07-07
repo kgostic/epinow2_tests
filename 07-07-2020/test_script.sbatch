@@ -8,7 +8,7 @@
 #SBATCH --mem-per-cpu=500
 #SBATCH --mail-type=END,FAIL,TIME_LIMIT
 #SBATCH --mail-user=kgostic
-#SBATCH --job-name=perfectly_specified
+
 
 module load R/4.0.0
 

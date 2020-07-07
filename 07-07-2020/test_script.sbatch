@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --time=3:00:00
-#SBATCH --output=messages/%x_%a.out
-#SBATCH --error=messages/%x_%a.err
+#SBATCH --output=messages/%x-%j.out
+#SBATCH --error=messages/%x-%j.err
 #SBATCH --nodes=1
 #SBATCH --partition=broadwl --qos=covid-19 --account=covid-19
 #SBATCH --ntasks-per-node=4

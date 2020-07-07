@@ -3,13 +3,12 @@
 
 run_test <- function(parlist,  # List of parameters used to generate synthetic data
                      testpars, # List of parameters used as inputs to epinow2 (may be misspecified relative to parlist)
+                     max_time = 150, # Late timepoint in observations
                      r_case_dist = NULL, # Function that draws samples from the delay from symptom onset to case  or death observation. Default is lognormal, with params given by testpars. If another form is desired (e.g. uniform), specify an alternte function here.
                      r_death_dist = NULL,
                      d_case_dist = NULL,
                      d_death_dist = NULL
 ){
-  
-  
   
   
   ## Set delay distributions for input into EpiNow2 -------------------------------------------
@@ -129,7 +128,7 @@ run_test <- function(parlist,  # List of parameters used to generate synthetic d
   }
   
   ## Generate synthetic times of observation up to t = 150
-  obs_df <- get_obs_ts(150) %>%
+  obs_df <- get_obs_ts(max_time) %>%
     mutate(date = Sys.Date()-rev(time)) ## Add calendar dates for input into epinow
   
   ## Plot

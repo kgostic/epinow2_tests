@@ -1,5 +1,6 @@
 ## Estimate Rt using epinow2
-## Test if the assumed delay to case or death observation is three days too long and much more variable than the true delay
+
+## Test the model given uniformly distributed times to observation, using the true mean.
 
 ## Load dependencies and set parameters ------------------------------------------------------
 rm(list = ls())
@@ -19,7 +20,7 @@ parlist <- readRDS('true_pars.rds')
 ## Set parameters for EpiNow2 test
 testpars <- list(
   last_obs_time = 150,
-  output_folder = 'misspec-delay-mean',
+  output_folder = 'misspec-delay-distribution',
   ## True delays
   true_mean_case_delay = 5,
   true_sd_case_delay = 1.7,
@@ -28,8 +29,8 @@ testpars <- list(
   true_mean_inc = exp(EpiNow2::covid_incubation_period[1, ]$mean),
   true_sd_inc = exp(EpiNow2::covid_incubation_period[1, ]$sd))
 ## Delays specified in model
-testpars$input_mean_case_delay = testpars$true_mean_case_delay + 3
-testpars$input_sd_case_delay = testpars$true_sd_case_delay + 2
+testpars$input_mean_case_delay = testpars$true_mean_case_delay
+testpars$input_sd_case_delay = testpars$true_sd_case_delay
 testpars$input_mean_death_delay = testpars$true_mean_death_delay
 testpars$input_sd_death_delay = testpars$true_sd_death_delay
 testpars$input_mean_inc = testpars$true_mean_inc
@@ -38,5 +39,11 @@ testpars$input_mean_gi = parlist$true_mean_GI
 testpars$input_sd_gi = sqrt(parlist$true_var_GI)
 dir_check(testpars$output_folder)
 
-run_test(parlist, testpars)
+run_test(parlist, 
+         testpars, 
+         max_time = testpars$last_obs_time, 
+         r_case_dist = function(nn){runif(nn, 0, testpars$true_mean_case_delay*2)}, 
+         r_death_dist = function(nn){runif(nn, 5, (testpars$true_mean_death_delay*2)-5)}, 
+         d_case_dist = function(xx){dunif(xx, 0, testpars$true_mean_case_delay*2)}, 
+         d_death_dist = function(xx){dunif(xx, 5, testpars$true_mean_death_delay*2-5)})
 

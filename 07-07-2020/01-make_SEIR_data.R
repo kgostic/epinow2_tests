@@ -34,7 +34,7 @@ parlist$true_var_GI = 2*(parlist$true_mean_GI/2)^2
 dir_check('rds')
 arnaught <- with(parlist, specify_arnaught(R0_vals, change_starts, change_ends, n_t))
 sim_wrapper(arnaught, parlist)
-write_rds(parlist, path = 'true_pars.rds')
+write_rds(parlist, path = 'rds/true_pars.rds')
 
 ## Visualize synthetic data
 get_sim_df() %>%

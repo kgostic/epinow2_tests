@@ -10,8 +10,7 @@ ggplot2::theme_set(theme_bw())
 ## Check if synthetic data already exists.
 ## If so, load from cache
 ## If not, make the data
-if(!file.exists('true_pars.rds')){source('01-make_SEIR_data.R')}
-parlist <- readRDS('true_pars.rds')
+parlist <- load_parlist()
 # Synthetic data is loaded using:
 # get_sim_df()
 
@@ -37,5 +36,7 @@ testpars$input_mean_gi = parlist$true_mean_GI - 2
 testpars$input_sd_gi = sqrt(parlist$true_var_GI) -2
 dir_check(testpars$output_folder)
 
+
+## Run epinow2 test using code in 00-run_test.R
 run_test(parlist, testpars)
 

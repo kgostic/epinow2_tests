@@ -291,6 +291,14 @@ get_rate <- function(mean, vv){
 
 
 
+load_parlist <- function(){
+  if(!file.exists('rds/true_pars.rds')){source('01-make_SEIR_data.R')}
+  parlist <- readRDS('rds/true_pars.rds')
+  parlist
+}
+
+
+
 # ## Get the first time at which cumulative case count is >12, or start at time 2 if cumulative incidence is immediately >12
 # st.time <- max(
 #   3,

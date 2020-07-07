@@ -10,8 +10,7 @@ ggplot2::theme_set(theme_bw())
 ## Check if synthetic data already exists.
 ## If so, load from cache
 ## If not, make the data
-if(!file.exists('true_pars.rds')){source('01-make_SEIR_data.R')}
-parlist <- readRDS('true_pars.rds')
+parlist <- load_parlist()
 # Synthetic data is loaded using:
 # get_sim_df()
 

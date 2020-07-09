@@ -1,11 +1,12 @@
 ## Estimate Rt using epinow2
-## Test if the assumed delay to case or death observation is three days too long and much more variable than the true delay
+
+## Test the model given uniformly distributed times to observation, using the true mean.
 
 ## Load dependencies and set parameters ------------------------------------------------------
 rm(list = ls())
-source('00-load_packages.R')
-source('00-util.R')
-source('00-run_test.R')
+source('../00-load_packages.R')
+source('../00-util.R')
+source('../00-run_test.R')
 ggplot2::theme_set(theme_bw())
 
 ## Check if synthetic data already exists.
@@ -18,7 +19,7 @@ parlist <- load_parlist()
 ## Set parameters for EpiNow2 test
 testpars <- list(
   last_obs_time = 150,
-  output_folder = 'perfectly_specified',
+  output_folder = 'misspec-delay-distribution',
   ## True delays
   true_mean_case_delay = 5,
   true_sd_case_delay = 1.7,
@@ -37,5 +38,11 @@ testpars$input_mean_gi = parlist$true_mean_GI
 testpars$input_sd_gi = sqrt(parlist$true_var_GI)
 dir_check(testpars$output_folder)
 
-run_test(parlist, testpars)
+run_test(parlist, 
+         testpars, 
+         max_time = testpars$last_obs_time, 
+         r_case_dist = function(nn){runif(nn, 0, testpars$true_mean_case_delay*2)}, 
+         r_death_dist = function(nn){runif(nn, 5, (testpars$true_mean_death_delay*2)-5)}, 
+         d_case_dist = function(xx){dunif(xx, 0, testpars$true_mean_case_delay*2)}, 
+         d_death_dist = function(xx){dunif(xx, 5, testpars$true_mean_death_delay*2-5)})
 

@@ -1,5 +1,4 @@
 ## Estimate Rt using epinow2
-## Test if the assumed delay to case or death observation is three days too long and much more variable than the true delay
 
 ## Load dependencies and set parameters ------------------------------------------------------
 rm(list = ls())
@@ -18,7 +17,7 @@ parlist <- load_parlist()
 ## Set parameters for EpiNow2 test
 testpars <- list(
   last_obs_time = 150,
-  output_folder = 'perfectly_specified',
+  output_folder = 'misspec-gi',
   ## True delays
   true_mean_case_delay = 5,
   true_sd_case_delay = 1.7,
@@ -33,9 +32,11 @@ testpars$input_mean_death_delay = testpars$true_mean_death_delay
 testpars$input_sd_death_delay = testpars$true_sd_death_delay
 testpars$input_mean_inc = testpars$true_mean_inc
 testpars$input_sd_inc = testpars$true_sd_inc
-testpars$input_mean_gi = parlist$true_mean_GI
-testpars$input_sd_gi = sqrt(parlist$true_var_GI)
+testpars$input_mean_gi = parlist$true_mean_GI - 2
+testpars$input_sd_gi = sqrt(parlist$true_var_GI) -2
 dir_check(testpars$output_folder)
 
+
+## Run epinow2 test using code in 00-run_test.R
 run_test(parlist, testpars)
 

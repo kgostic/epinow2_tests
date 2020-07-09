@@ -32,10 +32,10 @@ parlist$true_var_GI = 2*(parlist$true_mean_GI/2)^2
 
 ## Simulate SEIR data using a stochastic (ode) model
 ## Results are saved to subdirectory rds/
-dir_check('rds')
-arnaught <- with(parlist, specify_arnaught(R0_vals, change_starts, change_ends, n_t))
-sim_wrapper(arnaught, parlist)
-write_rds(parlist, path = 'rds/true_pars.rds')
+dir_check('rds') # Check that output directory exists, if not create it.
+arnaught <- with(parlist, specify_arnaught(R0_vals, change_starts, change_ends, n_t)) # Sepcify time-varying R0
+sim_wrapper(arnaught, parlist) # Simulate data
+write_rds(parlist, path = 'rds/true_pars.rds') # Save data
 
 ## Visualize synthetic data
 get_sim_df() %>%

@@ -3,9 +3,9 @@
 
 ## Load dependencies and set parameters ------------------------------------------------------
 rm(list = ls())
-source('00-load_packages.R')
-source('00-util.R')
-source('00-run_test.R')
+source('../00-load_packages.R')
+source('../00-util.R')
+source('../00-run_test.R')
 ggplot2::theme_set(theme_bw())
 
 ## Check if synthetic data already exists.
@@ -39,3 +39,5 @@ dir_check(testpars$output_folder)
 
 run_test(parlist, testpars)
 
+rmarkdown::render(input = "../Make_test_report.Rmd", output_file = sprintf('%s-results.html', testpars$output_folder),
+                  params = list(path = "perfectly_specified", replot = TRUE))

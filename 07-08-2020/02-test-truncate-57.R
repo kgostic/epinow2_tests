@@ -17,8 +17,8 @@ parlist <- load_parlist()
 
 ## Set parameters for EpiNow2 test
 testpars <- list(
-  last_obs_time = 150,
-  output_folder = 'perfectly_specified',
+  last_obs_time = 57,
+  output_folder = 'truncate-57',
   ## True delays
   true_mean_case_delay = 5,
   true_sd_case_delay = 1.7,
@@ -27,8 +27,8 @@ testpars <- list(
   true_mean_inc = exp(EpiNow2::covid_incubation_period[1, ]$mean),
   true_sd_inc = exp(EpiNow2::covid_incubation_period[1, ]$sd))
 ## Delays specified in model
-testpars$input_mean_case_delay = testpars$true_mean_case_delay
-testpars$input_sd_case_delay = testpars$true_sd_case_delay
+testpars$input_mean_case_delay = testpars$true_mean_case_delay + 3
+testpars$input_sd_case_delay = testpars$true_sd_case_delay + 2
 testpars$input_mean_death_delay = testpars$true_mean_death_delay
 testpars$input_sd_death_delay = testpars$true_sd_death_delay
 testpars$input_mean_inc = testpars$true_mean_inc
@@ -37,5 +37,7 @@ testpars$input_mean_gi = parlist$true_mean_GI
 testpars$input_sd_gi = sqrt(parlist$true_var_GI)
 dir_check(testpars$output_folder)
 
-run_test(parlist, testpars)
+run_test(parlist, 
+         testpars, 
+         max_time = testpars$last_obs_time)
 

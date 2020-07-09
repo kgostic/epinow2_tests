@@ -16,9 +16,9 @@ parlist <- {
     t_E = 4, # mean time in E (latent period)
     t_I = 4, # mean time in I (duration of infectiousness)
     n_t = 300, # total timesteps
-    R0_vals = c(2, 0.7, 1.1), ## Steady-state R0 values held at different points in the simulation
-    change_starts = c(50, 90), ## Times at which R0 starts to decrease from its previous steady state value
-    change_ends = c(57, 97), ## Times at which R0 reaches its new steady state
+    R0_vals = c(2, 2), ## Steady-state R0 values held at different points in the simulation
+    change_starts = 3, ## Times at which R0 starts to decrease from its previous steady state value
+    change_ends = 4, ## Times at which R0 reaches its new steady state
     model_types = c('seir'), # Can also choose sir
     methods = c('ode', 'stochastic') # could also choose ode
   )

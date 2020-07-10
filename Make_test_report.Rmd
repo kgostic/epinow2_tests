@@ -2,15 +2,15 @@
 title: "Test EpiNow2"
 output: html_notebook
 params:
-  dir_date: '07-08-2020'
-  path: 'perfectly_specified'
-  replot: FALSE
+  dir_date: NULL
+  path: NULL
+  replot: NULL
 ---
 
 
 ```{r}
 require(rmarkdown)
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, include = TRUE)
 ```
 
 
@@ -20,10 +20,8 @@ Katie Gostic
 cat(
   sprintf('Katie Gostic\n%s', Sys.Date())
 )
-
-
 cat(
-  sprintf('The report shows results from %s tests', params$path)
+  sprintf('The report shows results from %s, %s tests', params$dir_date, params$path)
 )
 ```
 
@@ -61,20 +59,19 @@ get_sim_df() %>%
 cowplot::plot_grid(R0, inc,  nrow = 2)
 ```
 
-## Get parameters for input in to EpiNow2 inference
+## Summarise parameters used for input in to EpiNow2 inference and used 
 
 ```{r}
 testpars <- readRDS(sprintf('%s/%s/testpars.rds', params$dir_date, params$path))
 input_table <- data.frame(
-  true = c(unlist(testpars[grepl('true', names(testpars))]), parlist$true_mean_GI, sqrt(parlist$true_var_GI)),
+  true = c(unlist(testpars[grepl('true', names(testpars))])),
   input = unlist(testpars[grepl('input', names(testpars))]),
-  parameter = rep(c('mean', 'sd'), 4),
+  parameter = c('log_mean', 'log_sd', 'log_mean', 'log_sd', 'log_mean', 'log_sd', 'mean', 'sd'),
   quantity = rep(c('onset to case observation', 'onset to death observation', 'incubation time', 'generation interval'), 2),
   distribution = rep(c('lognormal', 'gamma'), c(6, 2))
 ) %>%
   select(quantity, parameter, distribution, true, input)
 rownames(input_table) = NULL
-
 knitr::kable(input_table)
 ```
 
@@ -94,14 +91,13 @@ if(params$replot){
 
 # Plot the true and specified input distributions
 ```{r results = "asis", strip.white= FALSE}
-cat(sprintf('![](%s/figs.specified_distributions-%s.png)', params$dir_date, params$path))
-
+cat(sprintf('![](%s/figs/specified_distributions-%s.png)', params$dir_date, params$path))
 # rmarkdown::render("Test_epinow2_v2.Rmd", params = list(
 #     path = "perfectly_specified"))
 ```
 # Plot the synthetic observations generated using the true delay distributions
 ```{r results = "asis", strip.white= FALSE}
-cat(sprintf('![](%s/%s/synthetic_obs.png)', params$dir_date, params$path))
+cat(sprintf('![](%s/figs/%s-synthetic_obs.png)', params$dir_date, params$path))
 ```
 ## Run inference
 
@@ -112,15 +108,12 @@ cat(sprintf('![](%s/%s/synthetic_obs.png)', params$dir_date, params$path))
 cat('***\n
     ### Cases - Rt estimates\n')
 cat(sprintf('\n![Rt estimates vs. truth](%s/figs/rt-%s-cases.png)\n', params$dir_date, params$path))
-
 ## Show plots of inferred infection time series
 cat('\n### Cases - inferred infections\n')
 cat(sprintf('\n![Inferred infection time series vs. true infections and observations](%s/figs/infections-%s-cases.png)\n', params$dir_date, params$path))
-
 ## Show plot of posteriors vs. priors vs. truth
 cat('\n### Cases - posterior vs. prior\n')
 cat(sprintf('\n![Prior vs. posterior vs. truth for all key distributions](%s/figs/priors_vs_post-%s-case.png)\n', params$dir_date, params$path))
-
 ## Show pairs plot
 cat('\n### Cases - pairs plots of last 300 posterior samples\n')
 cat(sprintf('\n![Pairs plot of key distribution params](%s/figs/pairs-%s-cases.png)\n', params$dir_date, params$path))
@@ -129,23 +122,17 @@ cat(sprintf('\n![Pairs plot of key distribution params](%s/figs/pairs-%s-cases.p
 
 ## Visualize results for inference on observed deaths
 ```{r results = "asis", strip.white= FALSE}
-# ## Show plot of rt estimates vs. truth figure
-# cat('***\n
-#     ### Deaths - Rt estimates\n')
-# cat(sprintf('\n![Rt estimates vs. truth](figs/rt-%s-deaths.png)\n', params$path))
-# 
-# ## Show plots of inferred infection time series
-# cat('\n### Deaths - inferred infections\n')
-# cat(sprintf('\n![Inferred infection time series vs. true infections and observations](figs/infections-%s-deaths.png)\n', params$path))
-# 
-# ## Show plot of posteriors vs. priors vs. truth
-# cat('\n### Deaths - posterior vs. prior\n')
-# cat(sprintf('\n![Prior vs. posterior vs. truth for all key distributions](figs/priors_vs_post-%s-death.png)\n', params$path))
-# 
-# ## Show pairs plot
-# cat('\n### Deaths - pairs plots of last 300 posterior samples\n')
-# cat(sprintf('\n![Pairs plot of key distribution params](figs/pairs-%s-deaths.png)\n', params$path))
+## Show plot of rt estimates vs. truth figure
+cat('***\n
+    ### Deaths - Rt estimates\n')
+cat(sprintf('\n![Rt estimates vs. truth](%s/figs/rt-%s-deaths.png)\n', params$dir_date, params$path))
+## Show plots of inferred infection time series
+cat('\n### Deaths - inferred infections\n')
+cat(sprintf('\n![Inferred infection time series vs. true infections and observations](%s/figs/infections-%s-deaths.png)\n', params$dir_date, params$path))
+## Show plot of posteriors vs. priors vs. truth
+cat('\n### Deaths - posterior vs. prior\n')
+cat(sprintf('\n![Prior vs. posterior vs. truth for all key distributions](%s/figs/priors_vs_post-%s-death.png)\n', params$dir_date, params$path))
+## Show pairs plot
+cat('\n### Deaths - pairs plots of last 300 posterior samples\n')
+cat(sprintf('\n![Pairs plot of key distribution params](%s/figs/pairs-%s-deaths.png)\n', params$dir_date, params$path))
 ```
-
-
-

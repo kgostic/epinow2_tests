@@ -1,5 +1,10 @@
 library(ggplot2)
 theme_set(theme_bw())
+# 
+# incubation_period = inc_pd
+# generation_time = gen_int
+# delay = case_delay
+# delay_type = 'case'
 
 
 plot_pr_vs_post <- function(
@@ -20,17 +25,17 @@ plot_pr_vs_post <- function(
   inc_prior <- data_frame(
     xx = seq(0, incubation_period$max, by = 0.01),
     prior = dlnorm(xx, (incubation_period$mean), (incubation_period$sd)),
-    true = dlnorm(xx, log(testpars$true_mean_inc), log(testpars$true_sd_inc))
+    true = dlnorm(xx, testpars$true_log_mean_inc, testpars$true_log_sd_inc)
   )
   del_prior <- data_frame(
     xx = seq(0, delay$max, by = 0.01),
     prior = dlnorm(xx, delay$mean, delay$sd)
   )
   if(delay_type == 'case'){
-    del_prior$true = dlnorm(del_prior$xx, log(testpars$true_mean_case_delay), log(testpars$true_sd_case_delay))
+    del_prior$true = dlnorm(del_prior$xx, testpars$true_log_mean_case_delay, testpars$true_log_sd_case_delay)
   }else{
     stopifnot(delay_type == 'death')
-    del_prior$true = dlnorm(del_prior$xx, log(testpars$true_mean_death_delay), log(testpars$true_sd_death_delay))
+    del_prior$true = dlnorm(del_prior$xx, testpars$true_log_mean_death_delay, testpars$true_log_sd_death_delay)
   }
   
 
@@ -138,9 +143,14 @@ plot_pr_vs_post <- function(
 
 pairs_plots <- function(post_samples, delay_type = 'cases', path){
   
-  truepars = c(testpars$true_mean_inc, testpars$true_sd_inc, testpars$true_mean_case_delay, testpars$true_sd_case_delay, parlist$true_mean_GI, sqrt(parlist$true_var_GI))
+  truepars = c(exp(testpars$true_log_mean_inc), 
+               exp(testpars$true_log_sd_inc), 
+               exp(testpars$true_log_mean_case_delay), 
+               exp(testpars$true_log_sd_case_delay), 
+               parlist$true_mean_GI, 
+               sqrt(parlist$true_var_GI))
   if(delay_type == 'deaths'){
-    truepars[3:4] = c(testpars$true_mean_death_delay, testpars$true_sd_death_delay)
+    truepars[3:4] = exp(c(testpars$true_log_mean_death_delay, testpars$true_log_sd_death_delay))
   }else{
     stopifnot(delay_type == 'cases')
   }

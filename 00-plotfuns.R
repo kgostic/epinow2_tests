@@ -7,6 +7,7 @@ theme_set(theme_bw())
 # delay_type = 'case'
 
 
+
 plot_pr_vs_post <- function(
   post_samples,
   incubation_period,
@@ -62,39 +63,41 @@ plot_pr_vs_post <- function(
            variable = 'gi_post')
   
   
+  ## No longer output by epinow
+  # inc_post <- post_samples[grepl(pattern = 'inc', variable),] %>%
+  #   group_by(variable, sample) %>%
+  #   summarise(value = unique(value)) %>%
+  #   pivot_wider(names_from = variable, values_from = value) %>%
+  #   apply(MARGIN = 1, FUN = function(ss) dlnorm(seq(0, incubation_period$max, by = 0.01), ss[2], ss[3])) %>%
+  #   apply(MARGIN = 1, function(rr){
+  #     c(lower = quantile(rr, .025), 
+  #       median = quantile(rr, .5),
+  #       upper = quantile(rr, .975),
+  #       mean = mean(rr))
+  #   }) %>%
+  #   t() %>%
+  #   as.data.frame() %>%
+  #   mutate(xx = seq(0, incubation_period$max, by = 0.01),
+  #          variable = 'inc_post')
   
-  inc_post <- post_samples[grepl(pattern = 'inc', variable),] %>%
-    group_by(variable, sample) %>%
+  
+  
+  delay_post <- post_samples[grepl(pattern = 'delay_', variable),] %>%
+    group_by(variable, sample, strat) %>%
     summarise(value = unique(value)) %>%
     pivot_wider(names_from = variable, values_from = value) %>%
-    apply(MARGIN = 1, FUN = function(ss) dlnorm(seq(0, incubation_period$max, by = 0.01), ss[2], ss[3])) %>%
+    ungroup %>%
+    select(delay_mean, delay_sd) %>%
+    as.data.frame() %>%
+    apply(MARGIN = 1, FUN = function(ss) dlnorm(seq(0, delay$max, by = 0.1), ss[1], ss[2])) %>%
     apply(MARGIN = 1, function(rr){
       c(lower = quantile(rr, .025), 
         median = quantile(rr, .5),
         upper = quantile(rr, .975),
         mean = mean(rr))
     }) %>%
-    t() %>%
-    as.data.frame() %>%
-    mutate(xx = seq(0, incubation_period$max, by = 0.01),
-           variable = 'inc_post')
-  
-  
-  
-  delay_post <- post_samples[grepl(pattern = 'rep_', variable),] %>%
-    group_by(variable, sample) %>%
-    summarise(value = unique(value)) %>%
-    pivot_wider(names_from = variable, values_from = value) %>%
-    apply(MARGIN = 1, FUN = function(ss) dlnorm(seq(0, delay$max, by = 0.01), ss[2], ss[3])) %>%
-    apply(MARGIN = 1, function(rr){
-      c(lower = quantile(rr, .025), 
-        median = quantile(rr, .5),
-        upper = quantile(rr, .975),
-        mean = mean(rr))
-    }) %>%
-    t() %>%
-    as.data.frame() %>%
-    mutate(xx = seq(0, delay$max, by = 0.01),
+    t() %>% as.data.frame() %>%
+    mutate(xx = seq(0, delay$max, by = 0.1),
            variable = 'delay_post')
   
   
@@ -110,17 +113,17 @@ plot_pr_vs_post <- function(
     ggtitle('Generation interval')+
     theme(legend.position = c(.8, .8))
   
-  ii <- merge(inc_prior, inc_post, by = 'xx') %>%
-    pivot_longer(cols = c('prior', 'true', 'mean')) %>%
-    mutate(name = ifelse(name == 'mean', 'posterior', name)) %>%
-    ggplot()+
-    geom_line(aes(x = xx, y = value, color = name, lty = name), alpha = .5)+
-    geom_ribbon(aes(x = xx, ymin = `lower.2.5%`, ymax = `upper.97.5%`), fill = 'yellow', alpha = .5)+
-    scale_color_manual("", values = c('goldenrod', 'red', 'black'))+
-    scale_linetype_manual("", values = c(1, 2, 1))+
-    ylab('dens')+xlab('value')+
-    ggtitle('Incubation period')+
-    theme(legend.position = c(.8, .8))
+  # ii <- merge(inc_prior, inc_post, by = 'xx') %>%
+  #   pivot_longer(cols = c('prior', 'true', 'mean')) %>%
+  #   mutate(name = ifelse(name == 'mean', 'posterior', name)) %>%
+  #   ggplot()+
+  #   geom_line(aes(x = xx, y = value, color = name, lty = name), alpha = .5)+
+  #   geom_ribbon(aes(x = xx, ymin = `lower.2.5%`, ymax = `upper.97.5%`), fill = 'yellow', alpha = .5)+
+  #   scale_color_manual("", values = c('goldenrod', 'red', 'black'))+
+  #   scale_linetype_manual("", values = c(1, 2, 1))+
+  #   ylab('dens')+xlab('value')+
+  #   ggtitle('Incubation period')+
+  #   theme(legend.position = c(.8, .8))
   
   dd <- merge(del_prior, delay_post, by = 'xx') %>%
     pivot_longer(cols = c('prior', 'true', 'mean')) %>%
@@ -134,7 +137,7 @@ plot_pr_vs_post <- function(
     ggtitle('Reporting delay')+
     theme(legend.position = c(.8, .8))
   
-  cowplot::plot_grid(gg, ii, dd, ncol = 3)
+  cowplot::plot_grid(gg, dd, ncol = 3)
   ggsave2(filename = sprintf('figs/priors_vs_post-%s-%s.png', path, delay_type), width = 8, height = 4, units = 'in', dpi = 300)
 }
 
@@ -143,24 +146,22 @@ plot_pr_vs_post <- function(
 
 pairs_plots <- function(post_samples, delay_type = 'cases', path){
   
-  truepars = c(exp(testpars$true_log_mean_inc), 
-               exp(testpars$true_log_sd_inc), 
-               exp(testpars$true_log_mean_case_delay), 
+  truepars = c(exp(testpars$true_log_mean_case_delay), 
                exp(testpars$true_log_sd_case_delay), 
                parlist$true_mean_GI, 
                sqrt(parlist$true_var_GI))
   if(delay_type == 'deaths'){
-    truepars[3:4] = exp(c(testpars$true_log_mean_death_delay, testpars$true_log_sd_death_delay))
+    truepars[1:2] = exp(c(testpars$true_log_mean_death_delay, testpars$true_log_sd_death_delay))
   }else{
     stopifnot(delay_type == 'cases')
   }
   
   png(sprintf('figs/pairs-%s-%s.png', path, delay_type), width = 4, height = 4, units = 'in', res = 300)
-  post_samples[variable %in% c('inc_mean', 'inc_sd', 'rep_mean', 'rep_sd', 'gt_mean', 'gt_sd')] %>%
-    select(variable, sample, value) %>%
+  post_samples[variable %in% c('delay_mean', 'delay_sd', 'gt_mean', 'gt_sd')] %>%
+    select(variable, sample, strat, value) %>%
     mutate(value = ifelse(grepl('gt', variable), value, exp(value))) %>%
     pivot_wider(names_from = variable) %>%
-    select(-sample) %>%
+    select(-sample, - strat) %>%
     slice(sample(x=1:nrow(.), 300, replace = FALSE))%>%
     rbind(truepars) %>%
     pairs(col = c(rep(c('black', 'red'), c(300, 1))))

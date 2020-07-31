@@ -4,6 +4,7 @@
 run_test <- function(parlist,  # List of parameters used to generate synthetic data
                      testpars, # List of parameters used as inputs to epinow2 (may be misspecified relative to parlist)
                      max_time = 150,
+                     prior_smoothing_window,
                      debug = FALSE)
   {
   
@@ -158,9 +159,10 @@ run_test <- function(parlist,  # List of parameters used to generate synthetic d
   if(!debug){
   ## Fit to synthetic case observations
   est_from_cases <- EpiNow2::epinow(reported_cases = get_in_dat('obs_outpatient'), 
-                                    generation_time = generation_time,  ## Generation time priors
-                                    incubation_period = incubation_period, ## Incubation priors
-                                    reporting_delay = obs_rep_delay, ## Reporting dealy priors
+                                    generation_time = generation_time,
+                                    delays = list(reporting_delay = obs_rep_delay,
+                                                  incubation_period = incubation_period), 
+                                    prior_smoothing_window = prior_smoothing_window,
                                     rt_prior = list(mean = 2, sd = 1), horizon = 7,
                                     samples = 2000, warmup = 500, cores = 4,
                                     chains = 4, verbose = TRUE,
@@ -168,11 +170,12 @@ run_test <- function(parlist,  # List of parameters used to generate synthetic d
   
   est_from_deaths <- EpiNow2::epinow(reported_cases = get_in_dat('obs_deaths'), 
                                      generation_time = generation_time,  ## Generation time priors
-                                     incubation_period = incubation_period, ## Incubation priors
-                                     reporting_delay = death_rep_delay, ## Reporting dealy priors
+                                     delays = list(reporting_delay = obs_rep_delay,
+                                                   incubation_period = incubation_period), 
                                      rt_prior = list(mean = 2, sd = 1), horizon = 7,
                                      samples = 2000, warmup = 500, cores = 4,
                                      chains = 4, verbose = TRUE,
+                                     prior_smoothing_window = prior_smoothing_window,
                                      target_folder = paste0(testpars$output_folder, '/deaths'))
   }
   

@@ -324,7 +324,7 @@ simulate_seir_ode(arnaught = 2.0, t_E = 4, t_I = 4, N = 100000, S_init = 100000-
 
 
 
-sim_wrapper <- function(arnaught, PARAMS){
+sim_wrapper <- function(arnaught, PARAMS, path = 'rds'){
     for(method in PARAMS$methods) {
       for(model_type in PARAMS$model_types) {
         sim_df <- if(model_type == 'sir') {
@@ -362,6 +362,7 @@ sim_wrapper <- function(arnaught, PARAMS){
             )
         }
         
+        
         saveRDS(
           list(
             sim_df = sim_df %>% 
@@ -372,8 +373,8 @@ sim_wrapper <- function(arnaught, PARAMS){
             method = method,
             model_type = model_type
           ),
-          sprintf('rds/R0-%.2f_%s_%s.rds', arnaught[1], model_type, method)
-        )
+          file = sprintf('%s/R0-%.2f_%s_%s.rds', path, arnaught[1], model_type, method)
+          )
       }
     }
   }

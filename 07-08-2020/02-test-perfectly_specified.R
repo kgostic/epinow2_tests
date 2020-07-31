@@ -39,5 +39,5 @@ dir_check(testpars$output_folder)
 
 run_test(parlist, testpars)
 
-rmarkdown::render(input = "../Make_test_report.Rmd", output_file = sprintf('%s-results.html', testpars$output_folder),
+rmarkdown::render(input = "../Make_test_report.Rmd", output_file = sprintf('07-09-const_%s-results.html', testpars$output_folder),
                   params = list(path = "perfectly_specified", replot = TRUE))

@@ -1,0 +1,138 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Compare synthetic data generated using code from R/white_paper with code from test_epinow2
+
+# R/white_paper code 
+We know this produces unbiased estimates
+
+```{r}
+## Simulate synthetic data
+rm(list = ls())
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+
+
+## Set parameters to simulate SEIR epidemic
+parlist <- {
+  list(
+    N = 2e6, #total population size
+    E_init = 0,
+    I_init = 60,
+    t_E = 4, # mean time in E (latent period)
+    t_I = 4, # mean time in I (duration of infectiousness)
+    n_t = 300, # total timesteps
+    pre_intervention_R0 = 2.0, # Initial R0 before interventions
+    intervention_R0 = 0.8, # Final R0 after interventions
+    partially_lifeted_R0 = 1.15,
+    intervention_time_1 = 60, # Timepoint at which intervention starts (at which underlying transmission rate begins to fall)
+    intervention_time_2 = 60+30,
+    days_intervention_to_min = c(7), # Days from intervention start until transmission rate hits min_R0
+    days_to_Rt_rise = 7,
+    model_types = c('seir'), # Can also choose sir
+    methods = c('ode', 'stochastic') # could also choose ode
+  )
+}
+
+## Derive the mean and variance of the serial interval from the input parameters
+parlist$true_mean_SI = (parlist$t_E+parlist$t_I)
+parlist$true_var_SI = 2*(parlist$true_mean_SI/2)^2
+```
+
+```{r}
+setwd('~/R/white_paper/code/')
+## Simulate SEIR data using a stochastic (ode) model
+## Results are saved to a subdirectory called 'R0-xx.xx/'
+source('simulation-sweep.R')
+sim_sweep(parlist, path = '~/R/epinow2_tests/scratch/white_paper_sim/')
+```
+
+```{r}
+write_rds(parlist, path = '~/R/epinow2_tests/scratch/white_paper_sim/pars.rds')
+```
+
+
+# R/epinow2_tests code
+```{r}
+source('../00-load_packages.R')
+source('../00-util.R')
+source('../00-simulation.R')
+```
+```{r}
+## Set simulation parameters
+parlist2 <- {
+  with(parlist, list(
+    N = N, #total population size
+    E_init = E_init, # initial in E class
+    I_init = I_init, # initial in I class
+    t_E = t_E, # mean time in E (latent period)
+    t_I = t_I, # mean time in I (duration of infectiousness)
+    n_t = n_t, # total timesteps
+    R0_vals = c(pre_intervention_R0, intervention_R0, partially_lifeted_R0), ## Steady-state R0 values held at different points in the simulation
+    change_starts = c(intervention_time_1, intervention_time_2), ## Times at which R0 starts to decrease from its previous steady state value
+    change_ends = c(intervention_time_1+days_intervention_to_min, intervention_time_2+days_to_Rt_rise), ## Times at which R0 reaches its new steady state
+    model_types = c('seir'), # Can also choose sir
+    methods = c('ode', 'stochastic') # could also choose ode
+  )
+  )
+}
+
+## Derive the mean and variance of the serial interval from the input parameters
+parlist2$true_mean_GI = (parlist2$t_E+parlist2$t_I)
+parlist2$true_var_GI = 2*(parlist2$true_mean_GI/2)^2
+```
+
+
+```{r}
+setwd('~/R/epinow2_tests/07-14-2020_test_simulation/')
+arnaught <- with(parlist2, specify_arnaught(R0_vals, change_starts, change_ends, n_t))
+sim_wrapper(arnaught, parlist2, path = '~/R/epinow2_tests/scratch/epinow2_sim')
+write_rds(parlist2, path = '../scratch/epinow2_sim/pars.rds')
+```
+
+
+## Plot deterministic and stochastic sims against each other
+```{r}
+wp_sim <- read_rds('../scratch/white_paper_sim/R0-2.0/seir_ode_dec60-7_sim.rds')$sim_df %>%
+    mutate(kind = 'wp') 
+e2_sim <- read_rds('../scratch/epinow2_sim/R0-2.00_seir_ode.rds')$sim_df %>%
+    mutate(kind = 'e2t') %>%
+    rename(incidence = infections, obs_cases = onsets)
+df_ode <- bind_rows(
+  wp_sim,
+  e2_sim
+)
+
+df_ode %>% 
+  pivot_longer(-c(time, kind)) %>%
+ggplot() +
+  theme_bw() +
+  geom_line(aes(x = time, y = value, color = kind, lty = kind), alpha = .7) +
+  facet_wrap(.~name, scales = 'free_y')
+```
+Looks like the results are identical.
+
+
+```{r}
+df_ode %>% 
+ ggplot() +
+  theme_bw() +
+  geom_line(aes(x = time, y = incidence, color = kind, lty = kind), alpha = .7)
+```
+
+
+## Check that both return unbiased estimates using Cori et al.
+
+```{r}
+bind_rows(wp_cori, e2_cori) %>%
+  ggplot(aes(x = time))+
+  theme_bw()+
+  geom_ribbon(aes(ymin = Cori.025, ymax = Cori.975, fill = sim, color = sim), alpha = .5)+
+    geom_line(aes(y = true_rt))+
+  geom_line(aes(y = Cori.mean, color = sim))
+```
+

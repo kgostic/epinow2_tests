@@ -52,9 +52,11 @@ testpars$input_sd_gi = testpars$true_sd_gi
 dir_check(testpars$output_folder)
 
 ## Run epinow() ------------------------------ 
-#run_test(parlist, testpars)
+run_test(parlist, testpars)
 ## Code called by run_test
 print(run_test)
+
+
 
 
 ## Genearte a report using outputs of test run

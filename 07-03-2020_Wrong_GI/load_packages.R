@@ -2,7 +2,6 @@
 ## Install packages
 rm(list = ls())
 require(rstan, quietly = TRUE)
-rstan_options(auto_write = TRUE)
 require(dplyr, quietly = TRUE)
 require(readr, quietly = TRUE)
 require(tidyr, quietly = TRUE)
